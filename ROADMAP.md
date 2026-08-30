@@ -31,12 +31,16 @@ Exit criteria: common agent operations can survive process loss and resume from 
 
 ## v0.4 — Recovery and replay
 
-- event history
-- run replay
-- fork from checkpoint
-- dead-letter runs
-- compensation hooks
-- operator CLI
+- [x] ordered run event history in memory and PostgreSQL
+- [x] fresh run replay lineage
+- [x] fork from a completed checkpoint without copying later side effects
+- [x] dead-letter run records and PostgreSQL queue schema
+- [x] reverse-order compensation hooks with per-action history
+- [x] portable `durable-agent-run/v1` recovery snapshots
+- [x] `durablectl` operator CLI for snapshot inspection, event history and fork planning
+- [x] migration for event history and dead-letter persistence
+
+Exit criteria: operators can inspect a failed run, create a clean replay, fork safely from a known checkpoint, execute compensation hooks, and preserve terminal failures for later recovery without mutating the original history.
 
 ## v1.0
 

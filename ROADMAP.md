@@ -9,16 +9,20 @@
 - [x] PostgreSQL schema
 - [x] tests and CI
 
-Exit criteria: a completed step can be retried after process loss without re-running its side effect.
+## v0.2 — PostgreSQL driver and worker ownership
 
-## v0.2 — PostgreSQL driver
+- [x] transaction-safe PostgreSQL step store
+- [x] PostgreSQL run lifecycle store
+- [x] worker leases with expiration
+- [x] heartbeat renewal
+- [x] run lifecycle states
+- [x] concurrency protection
+- [x] cancellation requests
+- [x] retry/backoff policies
+- [x] per-attempt timeout support
+- [x] deterministic in-memory lease tests
 
-- transaction-safe Postgres store
-- worker leases and heartbeats
-- run lifecycle state
-- concurrency protection
-- timeout and cancellation
-- retry/backoff policies
+Exit criteria: only one worker owns an active run lease at a time, a crashed worker can be replaced after lease expiry, and completed durable steps are reused rather than replaying side effects.
 
 ## v0.3 — Agent primitives
 
@@ -40,9 +44,9 @@ Exit criteria: a completed step can be retried after process loss without re-run
 
 ## v1.0
 
-- multi-worker execution
+- multi-worker failure-injection suite
 - Postgres HA guidance
-- deterministic recovery test suite
+- deterministic recovery compatibility suite
 - OpenTelemetry integration
 - SDKs/examples for agent frameworks
-- benchmark and failure-injection suite
+- benchmark and overhead report

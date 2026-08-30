@@ -1,50 +1,95 @@
 # Durable Agent Runtime
 
-A small, Postgres-first durable execution runtime designed for AI agents.
-
-The core promise is simple: **completed steps are not repeated after a crash or retry**.
+A Postgres-first durable execution core for AI agents: checkpoint expensive side effects, lease work to one worker, heartbeat ownership, and recover safely after crashes.
 
 ```text
-Agent code
-   ↓
-Durable Engine
-   ↓
-Step checkpoints
-   ↓
-PostgreSQL
+Agent / Worker
+      ↓
+ Durable Runtime
+  ├─ step checkpointing
+  ├─ retry + timeout
+  ├─ run lease
+  ├─ heartbeat
+  └─ cancellation
+      ↓
+ PostgreSQL
 ```
 
-## v0.1
+## v0.2
 
-- durable step API
-- pluggable persistence `Store` contract
-- in-memory store for deterministic tests
-- PostgreSQL schema for runs and steps
-- retry-safe completed-step replay
-- failure state persistence
-- CI and unit tests
+- deterministic durable steps from v0.1
+- transaction-safe PostgreSQL checkpoint store
+- PostgreSQL run lifecycle store
+- worker leases with expiration
+- heartbeat-based ownership renewal
+- concurrency protection across workers
+- cancellation requests
+- terminal run lifecycle: completed / failed / cancelled
+- exponential retry/backoff policy
+- per-attempt timeouts
+- memory implementation for deterministic tests
+- migrations and CI
 
-## Example
+## Durable steps
 
 ```go
+store := durable.NewPostgresStore(db)
 engine := durable.NewEngine(store)
 
-output, err := engine.Step(ctx, "run-123", "search", func(ctx context.Context) (json.RawMessage, error) {
-    return json.RawMessage(`{"result":"done"}`), nil
+result, err := engine.Step(ctx, "run-42", "charge-card", func(ctx context.Context) (json.RawMessage, error) {
+    return chargeOnce(ctx)
 })
 ```
 
-Calling the same completed step again returns the checkpointed output without executing the function again.
+Once a step is persisted as completed, replay returns its saved output rather than repeating the external side effect.
 
-## Why agent-specific?
+## Retry and timeout
 
-Future versions add semantics that generic job queues do not model directly: LLM call persistence, tool-call idempotency, human approval waits, model fallback, agent checkpoints, trajectory history, budget state, and run forking.
+```go
+result, err := engine.StepWithRetry(ctx, "run-42", "model-call", durable.RetryPolicy{
+    MaxAttempts:       4,
+    BaseDelay:         250 * time.Millisecond,
+    MaxDelay:          5 * time.Second,
+    TimeoutPerAttempt: 30 * time.Second,
+}, callModel)
+```
+
+Each failed attempt is checkpointed before retrying.
+
+## Worker lease
+
+```go
+worker := durable.Worker{
+    Store:             store,
+    ID:                "worker-eu-01",
+    LeaseTTL:          30 * time.Second,
+    HeartbeatInterval: 10 * time.Second,
+}
+
+err := worker.Execute(ctx, "run-42", func(ctx context.Context) error {
+    // Execute the durable agent workflow here.
+    return nil
+})
+```
+
+A second worker cannot claim the same unexpired run. If the owner crashes and its lease expires, another worker can acquire the run and continue from persisted step checkpoints.
+
+## PostgreSQL
+
+Apply:
+
+```text
+migrations/001_init.sql
+migrations/002_leases.sql
+```
+
+`NewPostgresStore` accepts a standard `*sql.DB`; the application chooses its PostgreSQL driver (for example pgx's `stdlib`) instead of the runtime forcing a driver dependency.
+
+## Current boundary
+
+v0.2 provides durable ownership and recovery primitives. Durable LLM/tool helpers, approvals, timers, model fallback, and budget checkpoints are the v0.3 layer.
 
 See [ROADMAP.md](ROADMAP.md).
-
-## Status
-
-v0.1 foundation.
 
 ## License
 

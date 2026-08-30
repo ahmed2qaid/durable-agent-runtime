@@ -9,15 +9,19 @@ import (
 )
 
 type MemoryStore struct {
-	mu    sync.RWMutex
-	steps map[string]StepRecord
-	runs  map[string]RunRecord
+	mu          sync.RWMutex
+	steps       map[string]StepRecord
+	runs        map[string]RunRecord
+	events      map[string][]RunEvent
+	deadLetters map[string]DeadLetterRecord
 }
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		steps: make(map[string]StepRecord),
-		runs:  make(map[string]RunRecord),
+		steps:       make(map[string]StepRecord),
+		runs:        make(map[string]RunRecord),
+		events:      make(map[string][]RunEvent),
+		deadLetters: make(map[string]DeadLetterRecord),
 	}
 }
 

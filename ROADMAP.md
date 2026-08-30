@@ -11,27 +11,23 @@
 
 ## v0.2 — PostgreSQL driver and worker ownership
 
-- [x] transaction-safe PostgreSQL step store
-- [x] PostgreSQL run lifecycle store
-- [x] worker leases with expiration
-- [x] heartbeat renewal
-- [x] run lifecycle states
-- [x] concurrency protection
-- [x] cancellation requests
-- [x] retry/backoff policies
-- [x] per-attempt timeout support
-- [x] deterministic in-memory lease tests
-
-Exit criteria: only one worker owns an active run lease at a time, a crashed worker can be replaced after lease expiry, and completed durable steps are reused rather than replaying side effects.
+- [x] transaction-safe PostgreSQL step/run stores
+- [x] worker leases with expiration and heartbeat renewal
+- [x] run lifecycle states and cancellation
+- [x] concurrency protection and crash takeover
+- [x] retry/backoff policies and per-attempt timeouts
 
 ## v0.3 — Agent primitives
 
-- durable LLM calls
-- durable tool calls
-- human approval waits
-- durable sleep/timers
-- model fallback
-- cost/token budget checkpoints
+- [x] durable LLM calls with serialized checkpoints
+- [x] durable side-effecting tool calls
+- [x] human approval wait/resolve checkpoints
+- [x] durable sleep/timers that resume from wall-clock target
+- [x] ordered model fallback
+- [x] cost/token budget checkpoints
+- [x] tests proving completed LLM/tool side effects are not re-executed
+
+Exit criteria: common agent operations can survive process loss and resume from durable checkpoints without paying for or repeating already-completed model/tool calls.
 
 ## v0.4 — Recovery and replay
 

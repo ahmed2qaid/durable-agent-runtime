@@ -90,25 +90,14 @@ func (m *RecoveryManager) Fork(ctx context.Context, sourceRunID, targetRunID, th
 		return fmt.Errorf("durable: source run has no checkpoints: %s", sourceRunID)
 	}
 	sort.SliceStable(steps, func(i, j int) bool { return steps[i].UpdatedAt.Before(steps[j].UpdatedAt) })
-	metadata, _ := json.Marshal(map[string]any{"fork_of": sourceRunID, "through_step": throughStep})
-	now := time.Now().UTC()
-	if err := m.Store.CreateRecoveryRun(ctx, RunRecord{
-		RunID: targetRunID, Status: RunPending, Metadata: metadata, CreatedAt: now, UpdatedAt: now,
-	}); err != nil {
-		return err
-	}
+
+	selected := make([]StepRecord, 0, len(steps))
 	foundCheckpoint := false
-	copied := 0
 	for _, step := range steps {
 		if step.Status != StepCompleted {
 			continue
 		}
-		step.RunID = targetRunID
-		step.UpdatedAt = now
-		if err := m.Store.PutStep(ctx, step); err != nil {
-			return err
-		}
-		copied++
+		selected = append(selected, step)
 		if step.StepKey == throughStep {
 			foundCheckpoint = true
 			break
@@ -117,10 +106,25 @@ func (m *RecoveryManager) Fork(ctx context.Context, sourceRunID, targetRunID, th
 	if !foundCheckpoint {
 		return fmt.Errorf("durable: completed checkpoint not found: %s", throughStep)
 	}
+
+	metadata, _ := json.Marshal(map[string]any{"fork_of": sourceRunID, "through_step": throughStep})
+	now := time.Now().UTC()
+	if err := m.Store.CreateRecoveryRun(ctx, RunRecord{
+		RunID: targetRunID, Status: RunPending, Metadata: metadata, CreatedAt: now, UpdatedAt: now,
+	}); err != nil {
+		return err
+	}
+	for _, step := range selected {
+		step.RunID = targetRunID
+		step.UpdatedAt = now
+		if err := m.Store.PutStep(ctx, step); err != nil {
+			return err
+		}
+	}
 	payload, _ := json.Marshal(map[string]any{
 		"source_run_id": sourceRunID,
 		"through_step": throughStep,
-		"copied_steps": copied,
+		"copied_steps": len(selected),
 	})
 	_, err = m.Store.AppendEvent(ctx, RunEvent{RunID: targetRunID, Type: EventForkCreated, StepKey: throughStep, Payload: payload})
 	return err

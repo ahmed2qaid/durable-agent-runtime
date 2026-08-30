@@ -2,6 +2,7 @@ package durable
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -44,12 +45,12 @@ func TestStepWithRetryPersistsAttempts(t *testing.T) {
 	store := NewMemoryStore()
 	engine := NewEngine(store)
 	calls := 0
-	output, err := engine.StepWithRetry(context.Background(), "run", "unstable", RetryPolicy{MaxAttempts: 3}, func(context.Context) ([]byte, error) {
+	output, err := engine.StepWithRetry(context.Background(), "run", "unstable", RetryPolicy{MaxAttempts: 3}, func(context.Context) (json.RawMessage, error) {
 		calls++
 		if calls < 3 {
 			return nil, errors.New("temporary")
 		}
-		return []byte(`{"ok":true}`), nil
+		return json.RawMessage(`{"ok":true}`), nil
 	})
 	if err != nil {
 		t.Fatal(err)

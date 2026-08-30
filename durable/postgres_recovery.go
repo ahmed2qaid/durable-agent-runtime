@@ -2,7 +2,6 @@ package durable
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -47,8 +46,8 @@ func (s *PostgresStore) CreateRecoveryRun(ctx context.Context, record RunRecord)
 	}
 	result, err := s.db.ExecContext(ctx, `
 		INSERT INTO durable_runs(id, status, metadata, created_at, updated_at)
-		VALUES ($1, $2, $3::jsonb, COALESCE(NULLIF($4, '0001-01-01 00:00:00+00')::timestamptz, now()), now())
-		ON CONFLICT (id) DO NOTHING`, record.RunID, string(record.Status), metadata, record.CreatedAt.UTC().Format(time.RFC3339Nano))
+		VALUES ($1, $2, $3::jsonb, COALESCE($4, now()), now())
+		ON CONFLICT (id) DO NOTHING`, record.RunID, string(record.Status), metadata, nullableTime(record.CreatedAt))
 	if err != nil {
 		return err
 	}
@@ -161,5 +160,3 @@ func nullableTime(value time.Time) any {
 
 var _ RecoveryStore = (*PostgresStore)(nil)
 var _ RecoveryStore = (*MemoryStore)(nil)
-
-var _ = sql.ErrNoRows
